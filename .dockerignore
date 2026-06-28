@@ -4,13 +4,12 @@ target/
 # Local MySQL data created by Docker Compose
 my_sql/
 
+# Git files
+.git/
+
 # IDE files
 .idea/
 .vscode/
 
 # Logs
 *.log
-
-# OS files
-.DS_Store
-Thumbs.db

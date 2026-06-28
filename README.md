@@ -14,6 +14,7 @@ A Spring Boot backend service that provides personalized product data for shoppe
 - **Testcontainers** - Integration testing with MySQL
 - **RestAssured** - REST API testing
 - **Maven** - Build management
+- **Docker / Docker Compose** - Containerized application and database setup
 
 ## Features
 
@@ -24,6 +25,7 @@ A Spring Boot backend service that provides personalized product data for shoppe
 - Results ordered by relevancy score in descending order
 - Input validation with structured error responses
 - Integration tests for key API flows using Testcontainers
+- Docker Compose setup for running the application with MySQL
 
 ## API Documentation
 
@@ -126,15 +128,15 @@ Validation errors return a structured response with HTTP 400 status:
 ### Tables
 
 **product_metadata**
-- `product_Id` (VARCHAR, PRIMARY KEY): Unique product identifier
+- `product_id` (VARCHAR, PRIMARY KEY): Unique product identifier
 - `category` (VARCHAR): Product category
 - `brand` (VARCHAR): Product brand
 
 **shopper_shelf**
-- `shopper_Id` (VARCHAR): Shopper identifier
-- `product_Id` (VARCHAR): Product identifier, foreign key to `product_metadata.product_id`
-- `relevancy_Score` (DOUBLE): Relevancy score for the product
-- **Primary Key:** (shopper_Id, product_Id)
+- `shopper_id` (VARCHAR): Shopper identifier
+- `product_id` (VARCHAR): Product identifier, foreign key to `product_metadata.product_id`
+- `relevancy_score` (DOUBLE): Relevancy score for the product
+- **Primary Key:** (shopper_id, product_id)
 
 ### Indexes
 
@@ -162,13 +164,14 @@ Validation errors return a structured response with HTTP 400 status:
 
 - Java 21
 - Maven 3.6+
-- MySQL 8.0+ running locally or in a container
+- Docker
+- MySQL 8.0+ running locally or through Docker Compose
 
 ### Steps
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Chethani/personalized-data-api.git
    cd personalized-data-api
    ```
 
@@ -185,11 +188,9 @@ Validation errors return a structured response with HTTP 400 status:
     - `SPRING_DATASOURCE_USERNAME`
     - `SPRING_DATASOURCE_PASSWORD`
 
-    Docker Compose creates the personalization_db database using the configured MySQL environment variables. Flyway creates the required tables and indexes when the application starts.
-
 3. **Start MySQL using Docker Compose**
     ```bash
-   docker compose up -d
+   docker compose up -d db
    ```
 
 4. **Build the project**
@@ -203,6 +204,31 @@ Validation errors return a structured response with HTTP 400 status:
    ```
 
    The service will start at `http://localhost:8080`
+
+## Run with Docker Compose
+
+  The application can be run together with MySQL using Docker Compose.
+  ```bash
+  docker compose up --build
+  ```
+  
+  This starts:
+  - MySQL database on port 3306
+  - Spring Boot application on port 8080
+
+  The application will be available at `http://localhost:8080`
+
+  Docker Compose creates the personalization_db database using the configured MySQL environment variables. Flyway runs automatically when the application starts and creates the required tables and indexes.
+
+  To stop the containers:
+  ```bash
+  docker compose down
+  ```
+
+  For later runs, if there are no code or Dockerfile changes, use:
+  ```bash
+  docker compose up
+```
 
 ## How to Run Tests
 
