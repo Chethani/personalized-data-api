@@ -1,0 +1,16 @@
+# Build output
+target/
+
+# Local MySQL data created by Docker Compose
+mysql/
+
+# IDE files
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
