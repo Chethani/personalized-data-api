@@ -234,6 +234,44 @@ class PersonalizedDataApiIntegrationTest {
 
 	}
 
+	@Test
+	void shouldRejectWhenRequestWithoutToken() {
+		String requestBody = """
+                {
+                    "productId": "%s",
+                    "category": "%s",
+                    "brand": "%s"
+                }
+                """.formatted(PRODUCT_ID, CATEGORY, BRAND);
+        RestAssured.given()
+				// no Authorization header at all
+                .contentType(ContentType.JSON)
+                .body(requestBody)
+                .when()
+                .post(PRODUCT_METADATA_API)
+                .then()
+                .statusCode(401);
+	}
+
+	@Test
+	void shouldForbiddenWhenAuthenticatedCallerLacksTheRequiredAuthority() {
+		String requestBody = """
+                {
+                    "productId": "%s",
+                    "category": "%s",
+                    "brand": "%s"
+                }
+                """.formatted(PRODUCT_ID, CATEGORY, BRAND);
+        RestAssured.given()
+				.header("Authorization", "Bearer " + ecommerceServiceToken) // this token does not have the required authority
+                .contentType(ContentType.JSON)
+                .body(requestBody)
+                .when()
+                .post(PRODUCT_METADATA_API)
+                .then()
+                .statusCode(403);	
+	}
+
 	private void createProductMetadata(String productId, String category, String brand) {
         String requestBody = """
                 {
