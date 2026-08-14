@@ -4,17 +4,27 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
+import dasniko.testcontainers.keycloak.KeycloakContainer;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 
-@Import(TestcontainersConfiguration.class)
+@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Import(TestcontainersConfiguration.class)
 class PersonalizedDataApiIntegrationTest {
 
 	private static final String PRODUCT_METADATA_API = "/api/product-metadata";
@@ -39,8 +49,36 @@ class PersonalizedDataApiIntegrationTest {
 
 	private static final String VALIDATION_FAILED = "Validation failed";
 
+	// NEW — Keycloak container, static field, managed by Testcontainers directly
+    @Container
+	@SuppressWarnings("resource")
+    static KeycloakContainer keycloakContainer = new KeycloakContainer(DockerImageName.parse("quay.io/keycloak/keycloak:latest"))
+            .withRealmImportFile("personalized-data-api-realm-realm.json");
+
+	static {
+    	keycloakContainer.start();
+	}
+
+	// NEW — dynamically point security config at the running test container
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri",
+                () -> keycloakContainer.getAuthServerUrl() + "/realms/personalized-data-api-realm");
+        registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri",
+                () -> keycloakContainer.getAuthServerUrl() + "/realms/personalized-data-api-realm/protocol/openid-connect/certs");
+    }
+
+	private String dataTeamServiceToken;
+    private String ecommerceServiceToken;
+
 	@LocalServerPort
 	private Integer port;
+
+	@BeforeAll
+    void setUpTokens() {
+        dataTeamServiceToken = getAccessToken("data-team-service", "test-secret-data-team");
+        ecommerceServiceToken = getAccessToken("ecommerce-service", "test-secret-ecommerce");
+    }
 
 	@BeforeEach
 	public void setUp() {
@@ -65,6 +103,7 @@ class PersonalizedDataApiIntegrationTest {
 		createShopperShelf(SHOPPER_ID, List.of(new TestShelfItem(PRODUCT_ID, RELEVANCY_SCORE)));
 
 		RestAssured.given()
+				.header("Authorization", "Bearer " + ecommerceServiceToken)
 				.queryParam("shopperId", SHOPPER_ID)	
 				.when()
 				.get(SHOPPER_SHELF_API)
@@ -80,6 +119,7 @@ class PersonalizedDataApiIntegrationTest {
 	public void shouldReadShopperShelfFilteredByCategory() {
 		createSampleProductsAndShelf();
 		RestAssured.given()
+				.header("Authorization", "Bearer " + dataTeamServiceToken)
 				.queryParam("shopperId", SHOPPER_ID)
 				.queryParam("category", CATEGORY)
 				.when()
@@ -94,6 +134,7 @@ class PersonalizedDataApiIntegrationTest {
 	public void shouldReadShopperShelfFilteredByBrand() {
 		createSampleProductsAndShelf();
 		RestAssured.given()
+				.header("Authorization", "Bearer " + dataTeamServiceToken)
 				.queryParam("shopperId", SHOPPER_ID)
 				.queryParam("brand", BRAND)
 				.when()
@@ -108,6 +149,7 @@ class PersonalizedDataApiIntegrationTest {
 	public void shouldApplyLimit() {
 		createSampleProductsAndShelf();
 		RestAssured.given()
+            .header("Authorization", "Bearer " + dataTeamServiceToken)
             .queryParam("shopperId", SHOPPER_ID)
             .queryParam("limit", 2)
             .when()
@@ -121,6 +163,7 @@ class PersonalizedDataApiIntegrationTest {
 	public void shouldReturnShopperShelfOrderedByRelevancyScoreDescending(){
 		createSampleProductsAndShelf();
 		RestAssured.given()
+            .header("Authorization", "Bearer " + dataTeamServiceToken)
             .queryParam("shopperId", SHOPPER_ID)
             .when()
             .get(SHOPPER_SHELF_API)
@@ -135,6 +178,7 @@ class PersonalizedDataApiIntegrationTest {
 	@Test
 	public void shouldReturnBadRequestWhenShopperIdMissing() {
 		RestAssured.given()
+				.header("Authorization", "Bearer " + dataTeamServiceToken)
 				.when()
 				.get(SHOPPER_SHELF_API)
 				.then()
@@ -148,6 +192,7 @@ class PersonalizedDataApiIntegrationTest {
 	@Test
 	public void shouldReturnBadRequestWhenLimitGreaterThan100() {
 		RestAssured.given()
+				.header("Authorization", "Bearer " + dataTeamServiceToken)
 				.queryParam("shopperId", SHOPPER_ID)
 				.queryParam("limit", 101)
 				.when()
@@ -171,6 +216,7 @@ class PersonalizedDataApiIntegrationTest {
                 """;
 
         RestAssured.given()
+				.header("Authorization", "Bearer " + dataTeamServiceToken)
                 .contentType(ContentType.JSON)
                 .body(requestBody)
                 .when()
@@ -198,6 +244,7 @@ class PersonalizedDataApiIntegrationTest {
                 """.formatted(productId, category, brand);
 
         RestAssured.given()
+				.header("Authorization", "Bearer " + dataTeamServiceToken)
                 .contentType(ContentType.JSON)
                 .body(requestBody)
                 .when()
@@ -226,6 +273,7 @@ class PersonalizedDataApiIntegrationTest {
 				""".formatted(shopperId, shelfJson);
 
         RestAssured.given()
+				.header("Authorization", "Bearer " + dataTeamServiceToken)
                 .contentType(ContentType.JSON)
                 .body(requestBody)
                 .when()
@@ -244,6 +292,20 @@ class PersonalizedDataApiIntegrationTest {
 				new TestShelfItem(PRODUCT_ID_2, RELEVANCY_SCORE_2),
 				new TestShelfItem(PRODUCT_ID_3, RELEVANCY_SCORE_3)
 		));
+	}
+
+	private String getAccessToken(String clientId, String clientSecret) {
+    return RestAssured.given()
+            .contentType("application/x-www-form-urlencoded")
+            .formParam("grant_type", "client_credentials")
+            .formParam("client_id", clientId)
+            .formParam("client_secret", clientSecret)
+            .when()
+            .post(keycloakContainer.getAuthServerUrl() + "/realms/personalized-data-api-realm/protocol/openid-connect/token")
+            .then()
+            .statusCode(200)
+            .extract()
+            .path("access_token");
 	}
 
 }
