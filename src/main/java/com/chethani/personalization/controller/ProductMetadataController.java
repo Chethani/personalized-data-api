@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/product-metadata")
@@ -23,6 +24,7 @@ public class ProductMetadataController {
     private final ProductMetadataService productMetadataService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('write:metadata')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse addProductMetadata(@Valid @RequestBody ProductMetadataRequest request) {
         productMetadataService.addProductMetadata(request);

@@ -3,6 +3,7 @@ package com.chethani.personalization.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,6 +33,7 @@ public class ShopperShelfController {
     private final ShopperShelfService shopperShelfService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('write:shopper-data')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse addShopperShelfData(@Valid @RequestBody ShopperShelfRequest request) {
         shopperShelfService.addShopperShelfData(request);
@@ -39,6 +41,7 @@ public class ShopperShelfController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('read:shopper-data')")
     @ResponseStatus(HttpStatus.OK)
     public List<ShopperProductResponse> getShopperShelfData(
         @RequestParam @NotBlank String shopperId,
