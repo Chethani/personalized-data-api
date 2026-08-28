@@ -15,6 +15,8 @@ A Spring Boot backend service that provides personalized product data for shoppe
 - **RestAssured** - REST API testing
 - **Maven** - Build management
 - **Docker / Docker Compose** - Containerized application and database setup
+- **Spring Security (OAuth2 Resource Server)** - JWT-based authentication and authorization
+- **Keycloak** - Identity and Access Management (Authorization Server)
 
 ## Features
 
@@ -26,12 +28,16 @@ A Spring Boot backend service that provides personalized product data for shoppe
 - Input validation with structured error responses
 - Integration tests for key API flows using Testcontainers
 - Docker Compose setup for running the application with MySQL
+- Secures internal write APIs and external read APIs using OAuth2 client credentials and JWT validation
+- Method-level authorization enforcing role-based access per client
 
 ## API Documentation
 
 The available endpoints, request examples, response examples, and validation error format are documented here.
 
 ### 1. POST /api/product-metadata
+
+> **Authorization required:** `write:metadata`
 
 Store or update product metadata.
 
@@ -53,6 +59,8 @@ Store or update product metadata.
 ---
 
 ### 2. POST /api/shopper-shelf
+
+> **Authorization required:** `write:shopper-data`
 
 Store personalized shelf data for a shopper. This operation replaces existing shelf data for the shopper within a transaction.
 
@@ -79,6 +87,8 @@ Store personalized shelf data for a shopper. This operation replaces existing sh
 ---
 
 ### 3. GET /api/shopper-shelf
+
+> **Authorization required:** `read:shopper-data`
 
 Retrieve personalized products for a shopper.
 
@@ -123,6 +133,30 @@ Validation errors return a structured response with HTTP 400 status:
 }
 ```
 
+Missing or invalid token returns a HTTP 401 Unauthorized status:
+
+```json
+{
+  "status": 401,
+  "message": "Unauthorized",
+  "errors": [
+    "Authentication is required to access this resource."
+  ]
+}
+```
+
+Valid token, insufficient authority returns a HTTP 403 Forbidden status:
+
+```json
+{
+  "status": 403,
+  "message": "Forbidden",
+  "errors": [
+    "You do not have permission to perform this action."
+  ]
+}
+```
+
 ## Database Design
 
 ### Tables
@@ -158,6 +192,27 @@ Validation errors return a structured response with HTTP 400 status:
 - The limit parameter prevents returning excessive data for large shelves
 - Flyway migrations ensure consistent database schema
 
+## Authentication
+
+This API is secured using OAuth2 (Client Credentials flow) via Keycloak. Calling services must first obtain
+a JWT access token from Keycloak, then include it in the `Authorization` header as a Bearer token.
+
+**Get a token:**
+POST http://localhost:8081/realms/personalized-data-api-realm/protocol/openid-connect/token
+
+Body (x-www-form-urlencoded):
+- grant_type: client_credentials
+- client_id: <your-client-id>
+- client_secret: <your-client-secret>
+
+**Use the token:**
+Authorization: Bearer <access_token>
+
+| Client | Role(s) |
+|---|---|
+| data-team-service | write:shopper-data, write:metadata |
+| ecommerce-service | read:shopper-data |
+
 ## How to Run Locally
 
 ### Prerequisites
@@ -166,6 +221,7 @@ Validation errors return a structured response with HTTP 400 status:
 - Maven 3.6+
 - Docker
 - MySQL 8.0+ running locally or through Docker Compose
+- Keycloak running locally or through Docker Compose
 
 ### Steps
 
@@ -192,33 +248,63 @@ Validation errors return a structured response with HTTP 400 status:
     ```bash
    docker compose up -d db
    ```
+4. **Start Keycloak using Docker Compose**
+    ```bash
+      docker compose up -d keycloak
+    ```
+    This starts Keycloak on `http://localhost:8081` and automatically imports the realm configuration
+    (`personalized-data-api-realm`) from `docker/keycloak/realms/`, including the two pre-configured
+    service clients and their roles — see the [Authentication](#authentication) section above.
 
-4. **Build the project**
+    Admin console: `http://localhost:8081` (login: `admin` / `admin`)
+
+    **Manual setup (if not using the provided realm import):**
+    If you want to configure Keycloak from scratch instead of relying on the imported realm file:
+    1. Log into the admin console and create a new realm named `personalized-data-api-realm`
+    2. Under **Clients**, create a client for each caller (e.g., `data-team-service`, `ecommerce-service`)
+        - Enable **Client authentication**
+        - Enable **Service accounts roles** (required for Client Credentials flow)
+        - Copy the generated secret from the **Credentials** tab
+    3. Under **Realm roles**, create the roles used by the API: `read:shopper-data`, `write:shopper-data`, `write:metadata`
+    4. Assign the relevant roles to each client's **Service account roles** tab
+
+5. **Build the project**
    ```bash
    mvn clean install
    ```
 
-5. **Run the application**
+6. **Run the application**
    ```bash
    mvn spring-boot:run
    ```
 
    The service will start at `http://localhost:8080`
 
+   > **Note:** If running the app locally via `mvn spring-boot:run` (not in Docker), ensure
+   > `spring.security.oauth2.resourceserver.jwt.issuer-uri` points to `http://localhost:8081/realms/personalized-data-api-realm`.
+
 ## Run with Docker Compose
 
-  The application can be run together with MySQL using Docker Compose.
+  The application can be run together with MySQL and Keycloak using Docker Compose.
   ```bash
   docker compose up --build
   ```
   
   This starts:
   - MySQL database on port 3306
+  - Keycloak (Authorization Server) on port 8081
   - Spring Boot application on port 8080
 
   The application will be available at `http://localhost:8080`
 
   Docker Compose creates the personalization_db database using the configured MySQL environment variables. Flyway runs automatically when the application starts and creates the required tables and indexes.
+
+  Keycloak starts with the realm configuration automatically imported from `docker/keycloak/realms/`,
+  including the two pre-configured service clients (`data-team-service`, `ecommerce-service`) and their
+  roles. Admin console: http://localhost:8081 (default admin/admin — change for anything beyond local use).
+
+  Client secrets for obtaining tokens are defined in the imported realm file — see the Authentication
+  section above for how to request a token.
 
   To stop the containers:
   ```bash
@@ -238,7 +324,7 @@ Execute integration tests using Maven:
 mvn test
 ```
 
-Tests use Testcontainers to spin up a MySQL instance automatically. Ensure Docker is running.
+Tests use Testcontainers to spin up a MySQL and Keycloak instances automatically. Ensure Docker is running.
 
 ### Test Coverage
 
@@ -249,10 +335,10 @@ Tests use Testcontainers to spin up a MySQL instance automatically. Ensure Docke
 - Limit parameter validation
 - Relevancy score ordering
 - Validation error responses
+- Authentication and authorization enforcement (401 for missing token, 403 for insufficient role)
 
 ## Future Improvements
 
-- Add authentication and authorization to protect internal write APIs and external read APIs
 - Add Redis caching for frequently accessed shopper recommendations
 - Add pagination for browsing larger recommendation sets beyond the top limited results
 - Add audit logging for product metadata and shopper shelf data changes

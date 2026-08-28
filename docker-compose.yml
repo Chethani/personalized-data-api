@@ -2,6 +2,7 @@ services:
   db:
     image: mysql:8.0.0
     container_name: mysql
+    command: --sql-mode="STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
     environment:
       MYSQL_ROOT_PASSWORD: mysql
       MYSQL_DATABASE: personalization_db
@@ -9,6 +10,7 @@ services:
       - "3306:3306"
     volumes:
       - ./my_sql:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pmysql"]
       interval: 10s
@@ -27,6 +29,26 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/personalization_db?useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: mysql
+    restart: on-failure
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    command: [ "start-dev", "--import-realm" ]
+    environment:
+      KC_DB: mysql
+      KC_DB_URL: jdbc:mysql://db:3306/keycloak?useSSL=false&allowPublicKeyRetrieval=true
+      KC_DB_USERNAME: root
+      KC_DB_PASSWORD: mysql
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./docker/keycloak/realms/:/opt/keycloak/data/import/
+    depends_on:
+      db:
+        condition: service_healthy
     restart: on-failure
 
 volumes:

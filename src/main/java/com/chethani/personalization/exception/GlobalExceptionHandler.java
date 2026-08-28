@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -23,6 +25,8 @@ public class GlobalExceptionHandler {
     private static final String VALIDATION_FAILED = "Validation failed";
     private static final String BAD_REQUEST = "Bad request";
     private static final String UNEXPECTED_ERROR = "Unexpected error occurred";
+    private static final String FORBIDDEN = "Forbidden";
+    private static final String UNAUTHORIZED = "Unauthorized";
 
     // Handles validation errors in request body DTOs, e.g. @Valid @RequestBody
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -34,17 +38,14 @@ public class GlobalExceptionHandler {
             .map(error -> error.getField() + " " + error.getDefaultMessage())
             .toList();
 
-        return badRequest(VALIDATION_FAILED, errors);
+        return new ErrorResponse(HttpStatus.BAD_REQUEST.value(), VALIDATION_FAILED, errors);
     }
 
     // Handles malformed or unreadable JSON request bodies.
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleInvalidRequestBody(HttpMessageNotReadableException ex) {
-        return badRequest(
-                VALIDATION_FAILED,
-                List.of("Invalid request body")
-        );
+        return new ErrorResponse(HttpStatus.BAD_REQUEST.value(), VALIDATION_FAILED, List.of("Invalid request body"));
     }
 
     // Handles request parameter validation errors, e.g. @RequestParam @Min/@Max/@NotBlank
@@ -56,34 +57,50 @@ public class GlobalExceptionHandler {
                 .map(violation -> violation.getMessage())
                 .toList();
 
-        return badRequest(VALIDATION_FAILED, errors); // same message can get to constant
+        return new ErrorResponse(HttpStatus.BAD_REQUEST.value(), VALIDATION_FAILED, errors);
     }
 
     // Handles required query parameters that are completely missing
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMissingRequestParam(MissingServletRequestParameterException ex) {
-        return badRequest(
-            VALIDATION_FAILED,
-            List.of("Missing required request parameter: " + ex.getParameterName())
-        );
+        return new ErrorResponse(HttpStatus.BAD_REQUEST.value(), VALIDATION_FAILED, List.of("Missing required request parameter: " + ex.getParameterName()));
     }
 
     // Handles invalid request parameter type, e.g. limit=abc
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        return badRequest(
-            VALIDATION_FAILED,
-            List.of(ex.getName() + " must be a valid value")
-        );
+        return new ErrorResponse(HttpStatus.BAD_REQUEST.value(), VALIDATION_FAILED, List.of(ex.getName() + " must be a valid value"));
     }
 
     // Handles business validation errors thrown manually from service layer
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleIllegalArgument(IllegalArgumentException ex) {
-        return badRequest(BAD_REQUEST, List.of(ex.getMessage()));
+        return new ErrorResponse(HttpStatus.BAD_REQUEST.value(), BAD_REQUEST, List.of(ex.getMessage()));
+    }
+
+    // Handles cases where an authenticated caller lacks the required authority for the action (@PreAuthorize failure)
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleAuthorizationDenied(AuthorizationDeniedException ex) {
+        return new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                FORBIDDEN,
+                List.of("You do not have permission to perform this action.")
+        );
+    }
+
+    // Handles cases where the request is missing a valid token or the token failed authentication
+    @ExceptionHandler(AuthenticationException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleAuthenticationException(AuthenticationException ex) {
+        return new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                UNAUTHORIZED,
+                List.of("Authentication is required to access this resource.")
+        );
     }
 
     // Fallback handler for unexpected errors
@@ -96,15 +113,6 @@ public class GlobalExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 UNEXPECTED_ERROR,
                 List.of()
-        );
-    }
-
-    // Builds a consistent 400 Bad Request response.
-    private ErrorResponse badRequest(String message, List<String> errors) {
-        return new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                message,
-                errors
         );
     }
 
