@@ -34,6 +34,8 @@ public class SecurityConfig {
                 .build();
     }
 
+    // Keycloak-specific: reads roles from Keycloak's realm_access.roles claim.
+    // Would need updating if switching to a different OAuth2 provider (e.g. Cognito, Auth0).
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter  converter = new JwtAuthenticationConverter ();
