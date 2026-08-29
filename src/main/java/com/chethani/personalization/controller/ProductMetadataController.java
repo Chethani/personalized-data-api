@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.chethani.personalization.config.SecurityRoles;
 import com.chethani.personalization.dto.ApiResponse;
 import com.chethani.personalization.dto.ProductMetadataRequest;
 import com.chethani.personalization.service.ProductMetadataService;
@@ -24,7 +25,7 @@ public class ProductMetadataController {
     private final ProductMetadataService productMetadataService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('write:metadata')")
+    @PreAuthorize("hasAuthority('"+ SecurityRoles.WRITE_METADATA +"')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse addProductMetadata(@Valid @RequestBody ProductMetadataRequest request) {
         productMetadataService.addProductMetadata(request);
