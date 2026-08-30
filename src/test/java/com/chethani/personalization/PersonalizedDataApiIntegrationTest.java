@@ -250,7 +250,9 @@ class PersonalizedDataApiIntegrationTest {
                 .when()
                 .post(PRODUCT_METADATA_API)
                 .then()
-                .statusCode(401);
+                .statusCode(401)
+				.body("message", Matchers.equalTo("Unauthorized"))
+				.body("errors", Matchers.contains("Authentication is required to access this resource."));
 	}
 
 	@Test
@@ -269,7 +271,8 @@ class PersonalizedDataApiIntegrationTest {
                 .when()
                 .post(PRODUCT_METADATA_API)
                 .then()
-                .statusCode(403);	
+                .statusCode(403)
+				.body("errors", Matchers.contains("You do not have permission to perform this action."));	
 	}
 
 	private void createProductMetadata(String productId, String category, String brand) {
@@ -280,7 +283,7 @@ class PersonalizedDataApiIntegrationTest {
                     "brand": "%s"
                 }
                 """.formatted(productId, category, brand);
-
+		
         RestAssured.given()
 				.header("Authorization", "Bearer " + dataTeamServiceToken)
                 .contentType(ContentType.JSON)
@@ -288,6 +291,7 @@ class PersonalizedDataApiIntegrationTest {
                 .when()
                 .post(PRODUCT_METADATA_API)
                 .then()
+				// Not asserting exact message text here — status code is the meaningful contract; exact wording is free to change without breaking tests.
                 .statusCode(201);
     }
 
@@ -317,6 +321,7 @@ class PersonalizedDataApiIntegrationTest {
                 .when()
                 .post(SHOPPER_SHELF_API)
                 .then()
+				// Same reasoning as createProductMetadata test — see comment there.
                 .statusCode(201);
     }
 
