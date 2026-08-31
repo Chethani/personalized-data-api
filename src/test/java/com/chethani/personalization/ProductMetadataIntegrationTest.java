@@ -90,6 +90,17 @@ public class ProductMetadataIntegrationTest extends AbstractIntegrationTest {
 				.body("errors", Matchers.contains("You do not have permission to perform this action."));	
 	}
 
-    
+    @Test
+    void shouldReturnMethodNotAllowedWhenWrongHttpMethodUsed() {
+        RestAssured.given()
+                .header("Authorization", "Bearer " + dataTeamServiceToken)
+                .when()
+                .get(PRODUCT_METADATA_API) // this endpoint only supports POST
+                .then()
+                .statusCode(405)
+                .body("status", Matchers.equalTo(405))
+                .body("message", Matchers.equalTo("Method Not Allowed"))
+                .body("errors[0]", Matchers.containsString("GET"));
+    }
 
 }
