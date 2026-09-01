@@ -35,6 +35,13 @@ public class JwtAuthenticationConverterTest {
     }
 
     @Test
+    void shouldReturnNoAuthoritiesWhenRolesKeyMissing() {
+        Jwt jwt = buildJwt(Map.of("realm_access", Map.of())); // realm_access present, but no "roles" key
+        Collection<GrantedAuthority> authorities = converter.convert(jwt);
+        assertThat(authorities).isEmpty();
+    }
+
+    @Test
     void shouldMapRealmRolesToAuthorities() {
         Jwt jwt = buildJwt(Map.of("realm_access", Map.of("roles", List.of("read:shopper-data"))));
         Collection<GrantedAuthority> authorities = converter.convert(jwt);
