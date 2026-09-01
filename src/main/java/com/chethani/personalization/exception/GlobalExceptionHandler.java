@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
-import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
     private static final String BAD_REQUEST = "Bad request";
     private static final String UNEXPECTED_ERROR = "Unexpected error occurred";
     private static final String FORBIDDEN = "Forbidden";
-    private static final String UNAUTHORIZED = "Unauthorized";
+    private static final String METHOD_NOT_ALLOWED = "Method Not Allowed";
 
     // Handles validation errors in request body DTOs, e.g. @Valid @RequestBody
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -92,14 +92,14 @@ public class GlobalExceptionHandler {
         );
     }
 
-    // Handles cases where the request is missing a valid token or the token failed authentication
-    @ExceptionHandler(AuthenticationException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ErrorResponse handleAuthenticationException(AuthenticationException ex) {
+    // Handles cases where the HTTP method used is not supported for the endpoint
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+    public ErrorResponse handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
         return new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                UNAUTHORIZED,
-                List.of("Authentication is required to access this resource.")
+            HttpStatus.METHOD_NOT_ALLOWED.value(),
+            METHOD_NOT_ALLOWED,
+            List.of("The " + ex.getMethod() + " method is not supported for this endpoint.")
         );
     }
 

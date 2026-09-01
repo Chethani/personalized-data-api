@@ -12,7 +12,7 @@ class TestcontainersConfiguration {
 	@Bean
 	@ServiceConnection
 	MySQLContainer mysqlContainer() {
-		MySQLContainer mysqlContainer = new MySQLContainer(DockerImageName.parse("mysql:8.0.0"));
+		MySQLContainer mysqlContainer = new MySQLContainer(DockerImageName.parse("mysql:8.0.40"));
 		
 		mysqlContainer.withUrlParam("useSSL", "false");
 		mysqlContainer.withUrlParam("allowPublicKeyRetrieval", "true");

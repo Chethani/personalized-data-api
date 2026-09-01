@@ -1,6 +1,6 @@
 services:
   db:
-    image: mysql:8.0.0
+    image: mysql:8.0.40
     container_name: mysql
     command: --sql-mode="STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
     environment:
@@ -32,7 +32,7 @@ services:
     restart: on-failure
 
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    image: quay.io/keycloak/keycloak:26.7
     container_name: keycloak
     command: [ "start-dev", "--import-realm" ]
     environment:

@@ -157,6 +157,18 @@ Valid token, insufficient authority returns a HTTP 403 Forbidden status:
 }
 ```
 
+Unsupported HTTP method returns a HTTP 405 Method Not Allowed status:
+
+```json
+{
+  "status": 405,
+  "message": "Method Not Allowed",
+  "errors": [
+    "The GET method is not supported for this endpoint."
+  ]
+}
+```
+
 ## Database Design
 
 ### Tables

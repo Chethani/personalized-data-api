@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.chethani.personalization.config.SecurityRoles;
 import com.chethani.personalization.dto.ApiResponse;
 import com.chethani.personalization.dto.ShopperProductResponse;
 import com.chethani.personalization.dto.ShopperShelfRequest;
@@ -33,7 +34,7 @@ public class ShopperShelfController {
     private final ShopperShelfService shopperShelfService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('write:shopper-data')")
+    @PreAuthorize("hasAuthority('"+ SecurityRoles.WRITE_SHOPPER_DATA + "')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse addShopperShelfData(@Valid @RequestBody ShopperShelfRequest request) {
         shopperShelfService.addShopperShelfData(request);
@@ -41,7 +42,7 @@ public class ShopperShelfController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('read:shopper-data')")
+    @PreAuthorize("hasAuthority('"+ SecurityRoles.READ_SHOPPER_DATA + "')")
     @ResponseStatus(HttpStatus.OK)
     public List<ShopperProductResponse> getShopperShelfData(
         @RequestParam @NotBlank String shopperId,
